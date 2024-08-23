@@ -1,0 +1,5 @@
+sample.dir1/testdir2/.DS_Store
+sample.dir1/testdir1/.DS_Store
+sample.dir1/.DS_Store
+.DS_Store
+sample.dir1/testdir1/this.is.an.incredibly.long.directory.name.to.see.what.will.happen.with.incredibly.long.directory.names/.DS_Store

@@ -1,0 +1,184 @@
+
+# Assignment 2
+# Course: UNX510
+# Family Name: Gumus
+# Given Name: Yunus Emre
+# Student Number: 150-331-197
+# Login name: ygumus
+# Due Date: 08 14, 2024
+#
+# I declare that the attached assignment is my own work in
+# accordance with Seneca Academic Policy. No part of this UNX510
+# assignment has been copied manually or electronically from
+# any other source (including web sites) or distributed to
+# other students.
+
+#####################################################################################
+# UNX510 – Assignment 2                                                             #
+# I declare that this assignment is my own work in accordance with Seneca Academic  #
+# Policy.                                                                           #
+#                                                                                   #
+# No part of this assignment has been copied manually or electronically from any    #
+# other source (including web sites) or distributed to other students.              #
+#                                                                                   #
+# Name: Yunus Emre Gumus Student ID: 150331197 Date: 07-27-2024                     #
+#                                                                                   #
+#####################################################################################
+
+# Begin code below.
+#!/bin/bash
+
+# Function to display the error message and usage
+function usage_error {
+    # Print usage information
+    echo "Usage: pathdisplay [dir-name]"
+    # Exit with a status code indicating an error
+    exit 1
+}
+
+# Validate arguments
+# If more than one argument is provided, display usage error
+if [ "$#" -gt 1 ]; then
+    usage_error
+fi
+
+# Set default directory if no argument is provided
+# If no argument is given, set dir to the current directory (.)
+dir="${1:-.}"
+
+# Check if the specified directory is valid
+# If the directory does not exist, display an error message and exit
+if [ ! -d "$dir" ]; then
+    echo "$dir is not a valid directory name"
+    exit 1
+fi
+
+# Function to display directory permissions and info
+function display_info {
+    # Clear the screen
+    clear
+    # Set the current directory to the function argument
+    local current_dir="$1"
+    # Initialize an array to store the list of directories
+    local dir_list=()
+
+    # Build the list of directories in the path
+    # Loop until the current directory is the root directory
+    while [ "$current_dir" != "/" ]; do
+        # Add the current directory to the list
+        dir_list+=("$current_dir")
+        # Move up one level in the directory hierarchy
+        current_dir=$(dirname "$current_dir")
+    done
+    # Add root directory to the list
+    dir_list+=("/") 
+
+    # Display header
+    echo -e "Owner    Group    Other   Filename"
+    echo -e "-----    -----    -----   --------"
+
+    # Reverse the array to display from root to the specified directory
+    # Loop through the directories in reverse order
+    for (( idx=${#dir_list[@]}-1 ; idx>=0 ; idx-- )); do
+        local d="${dir_list[idx]}"
+        # Get the permissions of the directory
+        local permissions
+        permissions=$(stat -c "%A %n" "$d")
+        # Extract owner, group, and other permissions
+        local owner=$(echo "$permissions" | cut -c 2-4 | sed 's/./& /g')
+        local group=$(echo "$permissions" | cut -c 5-7 | sed 's/./& /g')
+        local other=$(echo "$permissions" | cut -c 8-10 | sed 's/./& /g')
+        # Get the base name of the directory
+        local filename=$(basename "$d")
+        # Print the permissions and filename
+        echo -e "$owner   $group   $other  $filename"
+    done
+
+    # Display additional info for the specified directory
+    echo
+    # Display the number of links, owner, group, size, and modification date
+    echo -e "Links: $(stat -c %h "$dir")\tOwner: $(stat -c %U "$dir")\tGroup: $(stat -c %G "$dir")\tSize: $(stat -c %s "$dir")"
+    # Extract the modification date in YYYY-MM-DD format
+    mod_date=$(stat -c %y "$dir" | cut -d' ' -f1)  # Get date in YYYY-MM-DD format
+    # Convert the date to Month Day Year format
+    formatted_date=$(date -d "$mod_date" +"%B %d %Y")
+    echo -e "Modified: $formatted_date"
+    echo
+    # Display valid commands
+    echo -e "Valid commands: u(p)    d(own)  q(uit)"
+}
+
+# Function to handle user input
+function handle_input {
+    # Set the initial directory to the function argument
+    local dir="$1"
+    # Initialize an array to store the list of directories
+    local dir_list=()
+    # Set the current directory to the initial directory
+    local current_dir="$dir"
+
+    # Build the list of directories in the path
+    # Loop until the current directory is the root directory
+    while [ "$current_dir" != "/" ]; do
+        # Add the current directory to the list
+        dir_list+=("$current_dir")
+        # Move up one level in the directory hierarchy
+        current_dir=$(dirname "$current_dir")
+    done
+    # Add root directory to the list
+    dir_list+=("/") 
+    # Initialize index to point to the last directory in the list
+    local index=0
+
+    # Infinite loop to continuously handle user input
+    while true; do
+        # Display directory information
+        display_info "$dir"
+
+        # Calculate cursor position for the filename
+        cursor_row=$(( ${#dir_list[@]} - ( index - 1) ))  #
+        cursor_col=26  
+
+        # Move cursor to the correct position
+        tput cup $cursor_row $cursor_col
+
+        # Read user input without pressing enter
+        read -rsn1 input
+
+        # Handle user input
+        case $input in
+            u)
+                # If 'u' is pressed and index is not at the top-most directory
+                if [ $index -lt $((${#dir_list[@]} - 1)) ]; then
+                    # Move up in the directory list
+                    ((index++))
+                    # Update the current directory
+                    dir="${dir_list[index]}"
+                fi
+                ;;
+            d)
+                # If 'd' is pressed and index is not at the bottom-most directory
+                if [ $index -gt 0 ]; then
+                    # Move down in the directory list
+                    ((index--))
+                    # Update the current directory
+                    dir="${dir_list[index]}"
+                fi
+                ;;
+            q)
+                # If 'q' is pressed, exit the loop
+                clear
+                break
+                ;;
+            *)
+                # Ignore all other keys
+                continue
+                ;;
+        esac
+    done
+}
+
+# Start the script
+handle_input "$dir"
+# Exit the script
+exit 0

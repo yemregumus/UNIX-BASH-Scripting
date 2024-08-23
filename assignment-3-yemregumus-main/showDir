@@ -1,0 +1,133 @@
+#!/bin/bash
+
+#####################################################################################
+# UNX510 – Assignment 3                                                             #
+# I declare that this assignment is my own work in accordance with Seneca Academic  #
+# Policy.                                                                           #
+#                                                                                   #
+# No part of this assignment has been copied manually or electronically from any    #
+# other source (including web sites) or distributed to other students.              #
+#                                                                                   #
+# Name:Yunus Emre Gumus Student ID: 150331197     Date: 17-08-2024________          #                                                                                                                       #                                  ######################################################################################
+
+# Begin code below.
+
+# Function to display the error message and usage
+function usage_error {
+    echo "Usage: showDir [dir-name]"
+    exit 1
+}
+
+# Validate arguments
+if [ "$#" -gt 1 ]; then
+    usage_error
+fi
+
+# Set default directory if no argument is provided
+dir="${1:-.}"
+
+# Check if the specified directory is valid
+if [ ! -d "$dir" ]; then
+    echo "$dir is not a valid directory name"
+    exit 1
+fi
+
+# Function to display directory permissions and info
+function display_info {
+    clear
+    local current_dir="$1"
+    local dir_list=()
+
+    while [ "$current_dir" != "/" ]; do
+        dir_list+=("$current_dir")
+        current_dir=$(dirname "$current_dir")
+    done
+    dir_list+=("/")
+
+    echo -e "Owner    Group    Other   Filename"
+    echo -e "-----    -----    -----   --------"
+
+    for (( idx=${#dir_list[@]}-1 ; idx>=0 ; idx-- )); do
+        local d="${dir_list[idx]}"
+        local permissions=$(stat -c "%A %n" "$d")
+        local owner=$(echo "$permissions" | cut -c 2-4 | sed 's/./& /g')
+        local group=$(echo "$permissions" | cut -c 5-7 | sed 's/./& /g')
+        local other=$(echo "$permissions" | cut -c 8-10 | sed 's/./& /g')
+        local filename=$(basename "$d")
+        echo -e "$owner   $group   $other  $filename"
+    done
+
+    echo
+    echo -e "Links: $(stat -c %h "$dir")\tOwner: $(stat -c %U "$dir")\tGroup: $(stat -c %G "$dir")\tSize: $(stat -c %s "$dir")"
+    local mod_date=$(stat -c %y "$dir" | cut -d' ' -f1)
+    local formatted_date=$(date -d "$mod_date" +"%B %d %Y")
+    echo -e "Modified: $formatted_date"
+    echo
+    echo -e "Valid commands: k(↑) j(↓) h(←) l(→) r(read) w(write) x(execute) -(remove) q(quit)"
+}
+
+# Function to handle permission changes
+function change_permission {
+    local dir="$1"
+    local field="$2"
+    local action="$3"
+    local chmod_flag=""
+
+    case "$field" in
+        1|2|3) chmod_flag="u";;
+        4|5|6) chmod_flag="g";;
+        7|8|9) chmod_flag="o";;
+    esac
+
+    case "$field" in
+        1|4|7) flag="r";;
+        2|5|8) flag="w";;
+        3|6|9) flag="x";;
+    esac
+
+    case "$action" in
+        r|w|x) chmod_flag+="+$flag";;
+        -) chmod_flag="-$flag";;
+    esac
+
+    if [ -n "$chmod_flag" ]; then
+        chmod "$chmod_flag" "$dir"
+    fi
+}
+
+# Function to handle user input
+function handle_input {
+    local dir="$1"
+    local dir_list=()
+    local current_dir="$dir"
+    local field=1  # Starting with the first permission field
+
+    while [ "$current_dir" != "/" ]; do
+        dir_list+=("$current_dir")
+        current_dir=$(dirname "$current_dir")
+    done
+    dir_list+=("/")
+    local index=0
+
+    while true; do
+        display_info "$dir"
+        # Calculate the cursor position using tput cup
+        tput cup $(( ${#dir_list[@]} - index - 1 + 2 )) $(( 7 + (field - 1) * 8 ))
+
+        read -rsn1 input
+
+        case $input in
+            k) if [ $index -lt $((${#dir_list[@]} - 1)) ]; then ((index++)); dir="${dir_list[index]}"; fi ;;
+            j) if [ $index -gt 0 ]; then ((index--)); dir="${dir_list[index]}"; fi ;;
+            h) if [ $field -gt 1 ]; then ((field--)); fi ;;
+            l) if [ $field -lt 9 ]; then ((field++)); fi ;;
+            r|w|x|-) change_permission "$dir" "$field" "$input" ;;
+            q) clear; break ;;
+            *) continue ;;
+        esac
+    done
+}
+
+# Start the script
+handle_input "$dir"
+exit 0
